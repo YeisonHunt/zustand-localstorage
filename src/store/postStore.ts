@@ -20,11 +20,17 @@ const storage: StateStorage = {
   },
 };
 
+const arePostsEqual = (oldPosts: Post[], newPosts: Post[]): boolean => {
+  if (oldPosts.length !== newPosts.length) return false;
+  return JSON.stringify(oldPosts) === JSON.stringify(newPosts);
+};
+
 interface PostState {
   posts: Post[];
   isLoading: boolean;
   error: string | null;
   selectedPost: Post | null;
+  lastUpdated: string | null;
   fetchPosts: () => Promise<void>;
   setSelectedPost: (post: Post | null) => void;
   invalidatePosts: () => Promise<void>;
@@ -37,13 +43,17 @@ export const usePostStore = create<PostState>()(
       isLoading: false,
       error: null,
       selectedPost: null,
+      lastUpdated: null,
       fetchPosts: async () => {
-        // Only fetch if posts array is empty
         if (get().posts.length === 0) {
           set({ isLoading: true, error: null });
           try {
-            const posts = await fetchPosts();
-            set({ posts, isLoading: false });
+            const newPosts = await fetchPosts();
+            set({ 
+              posts: newPosts, 
+              isLoading: false,
+              lastUpdated: new Date().toLocaleTimeString()
+            });
           } catch (error) {
             set({ error: (error as Error).message, isLoading: false });
           }
@@ -51,12 +61,19 @@ export const usePostStore = create<PostState>()(
       },
       setSelectedPost: (post) => set({ selectedPost: post }),
       invalidatePosts: async () => {
-        set({ isLoading: true, error: null });
         try {
-          const posts = await fetchPosts();
-          set({ posts, isLoading: false });
+          const newPosts = await fetchPosts();
+          const currentPosts = get().posts;
+          
+          // Only update if the data has actually changed
+          if (!arePostsEqual(currentPosts, newPosts)) {
+            set({ 
+              posts: newPosts,
+              lastUpdated: new Date().toLocaleTimeString()
+            });
+          }
         } catch (error) {
-          set({ error: (error as Error).message, isLoading: false });
+          set({ error: (error as Error).message });
         }
       },
     }),

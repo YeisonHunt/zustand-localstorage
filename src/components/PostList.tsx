@@ -3,13 +3,16 @@
 import { useEffect, useState } from 'react';
 import { usePostStore } from '@/store/postStore';
 
+const AUTO_REFRESH_INTERVAL = 10000; // 10 seconds in milliseconds
+
 export const PostList = () => {
   const [isClient, setIsClient] = useState(false);
   const { 
     posts, 
     isLoading, 
     error, 
-    selectedPost, 
+    selectedPost,
+    lastUpdated, 
     setSelectedPost, 
     fetchPosts,
     invalidatePosts 
@@ -18,7 +21,16 @@ export const PostList = () => {
   useEffect(() => {
     setIsClient(true);
     fetchPosts();
-  }, [fetchPosts]);
+
+    // Set up automatic refresh
+    const intervalId = setInterval(() => {
+      console.log('Auto-refreshing posts...');
+      invalidatePosts();
+    }, AUTO_REFRESH_INTERVAL);
+
+    // Cleanup interval on component unmount
+    return () => clearInterval(intervalId);
+  }, [fetchPosts, invalidatePosts]);
 
   // Show nothing until client-side code is running
   if (!isClient) return null;
@@ -38,7 +50,12 @@ export const PostList = () => {
   return (
     <div className="p-4">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Posts</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Posts</h1>
+          {lastUpdated && (
+            <p className="text-sm text-gray-500">Last updated: {lastUpdated}</p>
+          )}
+        </div>
         <button
           onClick={invalidatePosts}
           className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
